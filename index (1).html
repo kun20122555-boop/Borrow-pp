@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="th" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P.P. Sports Control System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background: linear-gradient(135deg, #4c51bf 0%, #6b46c1 100%); min-height: 100vh; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 50; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .card-glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        #menu-sidebar { transform: translateX(100%); transition: transform 0.3s ease-in-out; }
+        #menu-sidebar.open { transform: translateX(0); }
+    </style>
+</head>
+<body class="h-full overflow-x-hidden">
+
+    <div id="login-screen" class="fixed inset-0 z-[100] bg-indigo-900 flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-[2.5rem] shadow-2xl w-full max-w-sm text-center">
+            <img src="https://www.pityakom.ac.th/main/wp-content/uploads/2019/03/logo-pp.png" class="h-20 mx-auto mb-4">
+            <h2 class="text-2xl font-bold text-indigo-900 mb-2">เข้าสู่ระบบยืมอุปกรณ์</h2>
+            <p class="text-xs text-gray-400 mb-6 font-bold uppercase">ระบุข้อมูลจริงเพื่อป้องกันการระงับสิทธิ์</p>
+            
+            <div class="space-y-4 text-left">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 ml-2">เลขประจำตัวนักเรียน (5 หลัก)</label>
+                    <input type="number" id="login-sid" class="w-full border-2 p-4 rounded-2xl outline-none focus:border-indigo-500 font-bold" placeholder="12345">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 ml-2">เลขบัตรประชาชน (13 หลัก)</label>
+                    <input type="password" id="login-cid" class="w-full border-2 p-4 rounded-2xl outline-none focus:border-indigo-500 font-bold" placeholder="กรอกรหัสผ่าน">
+                </div>
+                <button onclick="handleLogin()" class="w-full bg-indigo-600 text-white p-4 rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition active:scale-95">ยืนยันตัวตน</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-content" class="hidden">
+        <nav class="bg-white/10 text-white p-4 sticky top-0 z-40 backdrop-blur-md border-b border-white/20">
+            <div class="max-w-6xl mx-auto flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <img src="https://www.pityakom.ac.th/main/wp-content/uploads/2019/03/logo-pp.png" class="h-10 w-10 bg-white rounded-full p-1 shadow-lg">
+                    <h1 class="text-lg font-bold">P.P. Sports</h1>
+                </div>
+                <button onclick="toggleMenu(true)" class="p-2 bg-white/20 rounded-2xl"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
+            </div>
+        </nav>
+
+        <main class="max-w-6xl mx-auto p-6">
+            <div class="mb-6 p-4 bg-white/20 border border-white/30 rounded-3xl text-white flex items-center justify-between shadow-xl">
+                <div>
+                    <p class="text-[10px] opacity-80">นักเรียนที่เข้าใช้:</p>
+                    <p id="display-user-name" class="font-bold text-lg leading-tight">...</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] opacity-80">สถานะการยืม:</p>
+                    <p id="display-user-status" class="font-bold">ปกติ</p>
+                </div>
+            </div>
+
+            <div id="equipment-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+        </main>
+    </div>
+
+    <div id="borrow-modal" class="modal"><div class="bg-white p-8 rounded-[2rem] w-full max-w-sm mx-4 text-center">
+        <h2 class="text-xl font-bold mb-2 text-indigo-900">ระบุเวลาส่งคืน</h2>
+        <p class="text-xs text-gray-400 mb-6">กรุณาส่งคืนตามเวลาที่เลือก (ไม่เกิน 17:00)</p>
+        <div class="space-y-4">
+            <select id="return-time-select" class="w-full border-2 p-4 rounded-2xl bg-gray-50 font-bold outline-none border-indigo-100"></select>
+            <button onclick="confirmBorrow()" class="w-full bg-indigo-600 text-white p-4 rounded-2xl font-bold shadow-lg">ยืนยันการยืม</button>
+            <button onclick="closeModals()" class="w-full text-gray-400 text-xs">ยกเลิก</button>
+        </div>
+    </div></div>
+
+    <div id="admin-panel" class="min-h-screen bg-gray-50 p-4 hidden">
+        <div class="max-w-xl mx-auto">
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-2xl font-bold text-gray-800">โหมดคุณครู 👨‍🏫</h2>
+                <button onclick="closeAdmin()" class="bg-indigo-100 text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold">กลับหน้ายืม</button>
+            </div>
+            <div id="admin-list" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <div id="menu-overlay" onclick="toggleMenu(false)" class="fixed inset-0 bg-black/50 z-[45] hidden"></div>
+    <div id="menu-sidebar" class="fixed top-0 right-0 h-full w-80 bg-white z-[50] p-6 flex flex-col shadow-2xl">
+        <h2 class="text-xl font-bold text-indigo-900 mb-6">เมนูจัดการ</h2>
+        <div class="flex-grow space-y-4">
+            <div id="my-borrowing-box"></div>
+            <button onclick="promptAdmin()" class="w-full bg-gray-100 text-gray-600 p-4 rounded-2xl font-bold text-sm">👨‍🏫 โหมดคุณครู</button>
+        </div>
+        <button onclick="handleLogout()" class="w-full text-red-500 font-bold border-t pt-4">ออกจากระบบ</button>
+    </div>
+
+    <div id="return-modal" class="modal"><div class="bg-white p-8 rounded-[2rem] w-full max-w-sm mx-4 text-center">
+        <h2 class="text-xl font-bold mb-6 text-green-600 font-bold">📸 ถ่ายรูปคู่กับอุปกรณ์</h2>
+        <input type="file" id="photo-input" accept="image/*" capture="environment" class="hidden" onchange="previewPhoto(event)">
+        <div onclick="document.getElementById('photo-input').click()" class="cursor-pointer mb-6 border-2 border-dashed border-indigo-100 p-10 rounded-[2rem] bg-indigo-50">
+            <img id="photo-preview" src="https://cdn-icons-png.flaticon.com/512/685/685655.png" class="h-16 mx-auto opacity-40">
+        </div>
+        <button id="confirm-return-btn" onclick="submitReturn()" class="w-full bg-green-600 text-white p-4 rounded-2xl font-bold opacity-30" disabled>ส่งให้ครูตรวจ</button>
+    </div></div>
+
+    <script>
+        // 1. ระบบกันมั่ว: ฐานข้อมูลนักเรียนที่ถูกต้องเท่านั้น
+        const studentDb = {
+            "48891": { cid: "1650101157803", name: "เด็กชายณวพน บำรุงเขต", room: "ม.2/11" },
+            "22222": { cid: "9876543210987", name: "เด็กหญิงสมศรี มีสุข", room: "ม.2/10" }
+        };
+        const teacherSids = ["00000", "99999"];
+
+        const equipment = [
+            { id: 1, name: "ฟุตบอล", icon: "https://weprintballs.co.uk/cdn/shop/products/51KM6J9JUBL._AC_SL1024_1400x.jpg?v=1675003224", total: 10 },
+            { id: 2, name: "บาสเกตบอล", icon: "https://upload.wikimedia.org/wikipedia/commons/7/7a/Basketball.png", total: 5 },
+            { id: 3, name: "วอลเลย์บอล", icon: "https://m.media-amazon.com/images/I/61pFab9tNeL.jpg", total: 8 },
+            { id: 4, name: "ปิงปอง", icon: "https://tennex.in/cdn/shop/files/tennis_11.jpg?v=1756825727&width=2000", total: 20 }
+        ];
+
+        let currentUser = JSON.parse(sessionStorage.getItem('pp_user')) || null;
+        let records = JSON.parse(localStorage.getItem('pp_records_v12')) || [];
+        let selectedEquipId = null;
+        let capturedImg = null;
+        let activeReturnId = null;
+
+        // ฟังก์ชัน Login ป้องกันการใส่เลขมั่ว
+        function handleLogin() {
+            const sid = document.getElementById('login-sid').value.trim();
+            const cid = document.getElementById('login-cid').value.trim();
+
+            if (studentDb[sid] && studentDb[sid].cid === cid) {
+                currentUser = { sid, ...studentDb[sid] };
+                sessionStorage.setItem('pp_user', JSON.stringify(currentUser));
+                initApp();
+            } else {
+                alert("❌ ข้อมูลไม่ถูกต้อง! กรุณาตรวจสอบเลขประจำตัวและเลขบัตรประชาชน");
+            }
+        }
+
+        function initApp() {
+            if (!currentUser) return;
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('main-content').classList.remove('hidden');
+            document.getElementById('display-user-name').innerText = currentUser.name;
+            render();
+        }
+
+        function render() {
+            const grid = document.getElementById('equipment-grid');
+            grid.innerHTML = '';
+            const isLocked = records.some(r => r.sid === currentUser.sid && r.status !== 'returned');
+            const now = new Date();
+
+            equipment.forEach(item => {
+                const inUse = records.filter(r => r.itemId === item.id && r.status !== 'returned').length;
+                const available = item.total - inUse;
+                const timeExpired = now.getHours() >= 17; // หลัง 5 โมงยืมไม่ได้
+                const canBorrow = available > 0 && !isLocked && !timeExpired;
+
+                grid.innerHTML += `
+                    <div class="card-glass p-5 rounded-[2rem] text-center shadow-lg border border-white">
+                        <img src="${item.icon}" class="h-14 mx-auto mb-3 object-contain">
+                        <h3 class="text-xs font-bold text-gray-700">${item.name}</h3>
+                        <p class="text-[10px] mb-4 font-bold ${available > 0 ? 'text-green-500' : 'text-red-500'}">ว่าง ${available}/${item.total}</p>
+                        <button onclick="openTimeModal(${item.id})" 
+                                class="w-full py-3 rounded-2xl text-[10px] font-bold transition shadow-md 
+                                ${canBorrow ? 'bg-indigo-600 text-white active:scale-95' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}"
+                                ${!canBorrow ? 'disabled' : ''}>
+                                ${timeExpired ? 'ปิดยืม (เกิน 17:00)' : (isLocked ? 'ต้องคืนของเดิมก่อน' : (available > 0 ? 'กดยืมอุปกรณ์' : 'หมด'))}
+                        </button>
+                    </div>`;
+            });
+            updateSidebar();
+        }
+
+        // 2. ระบบเลือกเวลาคืนสูงสุด 17:00
+        function openTimeModal(itemId) {
+            selectedEquipId = itemId;
+            const select = document.getElementById('return-time-select');
+            select.innerHTML = '';
+            
+            const now = new Date();
+            let startHour = now.getHours() + 1;
+            if (startHour < 8) startHour = 8;
+
+            for (let i = startHour; i <= 17; i++) {
+                const timeStr = `${i}:00 น.`;
+                select.innerHTML += `<option value="${timeStr}">${timeStr}</option>`;
+            }
+
+            if (select.innerHTML === '') {
+                alert("ขณะนี้ใกล้เวลาปิดระบบแล้ว ไม่สามารถยืมเพิ่มได้");
+            } else {
+                document.getElementById('borrow-modal').classList.add('active');
+            }
+        }
+
+        function confirmBorrow() {
+            const returnTime = document.getElementById('return-time-select').value;
+            const item = equipment.find(e => e.id === selectedEquipId);
+            
+            records.push({
+                id: Date.now(),
+                itemId: selectedEquipId,
+                sid: currentUser.sid,
+                name: currentUser.name,
+                room: currentUser.room,
+                status: 'borrowed',
+                borrowDate: new Date().toLocaleString('th-TH'),
+                returnLimit: returnTime, // เก็บเวลาที่เลือกไว้
+                photoData: null
+            });
+            
+            save();
+            closeModals();
+            alert(`ยืม ${item.name} สำเร็จ! กรุณาคืนก่อนเวลา ${returnTime}`);
+        }
+
+        function updateSidebar() {
+            const box = document.getElementById('my-borrowing-box');
+            const myActive = records.find(r => r.sid === currentUser.sid && r.status !== 'returned');
+            const statusEl = document.getElementById('display-user-status');
+            
+            if(myActive) {
+                const item = equipment.find(e => e.id === myActive.itemId);
+                box.innerHTML = `
+                    <div class="bg-indigo-50 p-5 rounded-3xl border border-indigo-100 mb-6">
+                        <p class="text-[10px] font-bold text-indigo-400 uppercase leading-none mb-1">อุปกรณ์ที่ถืออยู่</p>
+                        <p class="text-lg font-bold text-indigo-900 leading-tight mb-2">${item.name}</p>
+                        <p class="text-[10px] text-orange-600 font-bold mb-4 italic">📅 ต้องคืนภายใน: ${myActive.returnLimit}</p>
+                        ${myActive.status === 'borrowed' ? 
+                            `<button onclick="openReturn(${myActive.id})" class="w-full bg-white text-indigo-600 py-3 rounded-2xl text-xs font-bold border border-indigo-200 shadow-sm active:scale-95 transition">ส่งคืนอุปกรณ์ (ถ่ายรูป)</button>` : 
+                            `<div class="bg-orange-100 text-orange-600 py-3 rounded-2xl text-xs font-bold text-center">⌛ รอคุณครูตรวจสอบ...</div>`}
+                    </div>`;
+                statusEl.innerText = (myActive.status === 'borrowed') ? "❌ ค้างส่ง" : "⌛ รอตรวจ";
+                statusEl.className = (myActive.status === 'borrowed') ? "font-bold text-red-500" : "font-bold text-orange-400";
+            } else {
+                box.innerHTML = '<div class="text-center py-8 bg-gray-50 rounded-3xl mb-6"><img src="https://cdn-icons-png.flaticon.com/512/10542/10542563.png" class="h-12 mx-auto mb-2 opacity-20"><p class="text-gray-400 text-[10px] font-bold">ไม่มีประวัติค้างส่งในขณะนี้</p></div>';
+                statusEl.innerText = "✅ ปกติ";
+                statusEl.className = "font-bold text-green-400";
+            }
+        }
+
+        // ส่วนฟังก์ชันเสริมอื่นๆ (ถ่ายรูป, แอดมิน) คงเดิมจากเวอร์ชันที่เสถียรที่สุด
+        function openReturn(id) { activeReturnId = id; document.getElementById('return-modal').classList.add('active'); }
+        function closeModals() { document.querySelectorAll('.modal').forEach(m => m.classList.remove('active')); }
+        function save() { localStorage.setItem('pp_records_v12', JSON.stringify(records)); render(); }
+        function handleLogout() { sessionStorage.removeItem('pp_user'); location.reload(); }
+        function toggleMenu(s) { document.getElementById('menu-sidebar').classList.toggle('open', s); document.getElementById('menu-overlay').classList.toggle('hidden', !s); }
+
+        function previewPhoto(e) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                capturedImg = reader.result;
+                document.getElementById('photo-preview').src = capturedImg;
+                document.getElementById('confirm-return-btn').disabled = false;
+                document.getElementById('confirm-return-btn').classList.remove('opacity-30');
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        }
+
+        function submitReturn() {
+            const record = records.find(r => r.id === activeReturnId);
+            if(record) { record.status = 'pending'; record.photoData = capturedImg; save(); closeModals(); toggleMenu(false); alert("ส่งหลักฐานให้ครูแล้วครับ"); }
+        }
+
+        function promptAdmin() {
+            const pw = prompt("รหัสครู:");
+            if(teacherSids.includes(pw)) {
+                document.getElementById('main-content').classList.add('hidden');
+                document.getElementById('admin-panel').classList.remove('hidden');
+                toggleMenu(false); renderAdmin();
+            }
+        }
+
+        function renderAdmin() {
+            const list = document.getElementById('admin-list'); list.innerHTML = '';
+            const pending = records.filter(r => r.status === 'pending');
+            if(pending.length === 0) { list.innerHTML = '<p class="text-center text-gray-400 py-10">ไม่มีรายการรอยืนยัน</p>'; return; }
+            pending.forEach(r => {
+                const item = equipment.find(e => e.id === r.itemId);
+                list.innerHTML += `
+                    <div class="bg-white p-5 rounded-[2rem] shadow-sm mb-4 border">
+                        <img src="${r.photoData}" class="w-full h-48 object-cover rounded-2xl mb-4 border">
+                        <p class="font-bold text-indigo-900">${r.name} (${item.name})</p>
+                        <p class="text-[10px] text-gray-400">กำหนดคืน: ${r.returnLimit}</p>
+                        <div class="flex gap-2 mt-4">
+                            <button onclick="teacherAction(${r.id}, true)" class="flex-grow bg-green-500 text-white py-3 rounded-xl font-bold">รับคืนสำเร็จ</button>
+                            <button onclick="teacherAction(${r.id}, false)" class="flex-grow bg-red-50 text-red-500 py-3 rounded-xl font-bold">รูปไม่ชัด</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function teacherAction(id, ok) {
+            const r = records.find(rec => rec.id === id);
+            if(r) { r.status = ok ? 'returned' : 'borrowed'; save(); renderAdmin(); }
+        }
+
+        function closeAdmin() { document.getElementById('admin-panel').classList.add('hidden'); document.getElementById('main-content').classList.remove('hidden'); render(); }
+
+        initApp();
+    </script>
+</body>
+</html>
